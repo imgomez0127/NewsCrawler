@@ -3,11 +3,13 @@ A module that contains the class for a webcrawler which finds all the CryptoCurr
     By Ian Gomez
 """
 from bs4 import BeautifulSoup
-import requests
 import os.path
+from selenium import webdriver
+from selenium.webdriver.firefox.options import Options
 from LinkCrawler import LinkCrawler
 import csv
 import json
+
 class NetSpider(object):
 
     link_file = "links.txt"
@@ -17,7 +19,7 @@ class NetSpider(object):
     index_url = ""
     article_file = "articles.json"
     query = {}
-
+    geckdriver_path = "/usr/bin/geckodriver"
     def __init__(self, spider_id, data_directory,queue_link):
         self.__spider_id = spider_id
         self.__data_directory = data_directory
@@ -51,7 +53,7 @@ class NetSpider(object):
         LinkCrawler(
                     NetSpider.index_url,NetSpider.article_count,\
                     NetSpider.link_file,NetSpider.link_file_directory,
-                    NetSpider.query
+                    NetSpider.geckodriver_path,NetSpider.query
                     ).export_links(articles_per_page,a_tag_attrs)
         with open(full_filename,'rt') as f:
             for line in f:

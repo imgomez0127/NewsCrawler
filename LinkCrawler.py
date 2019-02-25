@@ -2,19 +2,20 @@
     A module that contains the class for a webcrawler which finds all the Article 
     links on the News Site page
 """
-import requests
 from bs4 import BeautifulSoup
 import os.path
 from math import ceil
 from urllib.parse import urljoin
-import urllib.request
-import re
+from selenium import webdriver
+from selenium.webdriver.firefox.options import Options
+
 class LinkCrawler(object):
 
-    def __init__(self,index_url,filename,dirname,query={}):
+    def __init__(self,index_url,filename,dirname,geckodriver_path,query={}):
         self.__index_url = index_url
         self.__filename = filename
         self.__dirname = dirname
+        self.__geckodriver_path = geckodriver_path
         if(type(query) != dict):
             raise valueerror("the input query is not of type dict")
         self.__query = query
@@ -66,13 +67,18 @@ class LinkCrawler(object):
     def __find_links(self,a_tag_attrs,urlparams):
         a_tag_list = []
         links_list = []
-        index_page = urllib.request.urlopen(url).read().decode("utf-8")
+        options = Options()
+        options.headless = True
+        driver = webdriver.Firefox(options=options, executable_path = self.__geckodriver_path)
+        driver.get(self.__index_url) 
+        driver.forward()
+        index_page = driver.page_source
         a_tag_list += BeautifulSoup(index_page,"lxml").find_all("a",attrs = a_tag_attrs)
         print(a_tag_list)
         for a_tag in a_tag_list:
             link_url = urljoin(self.__index_url, a_tag.get('href'))
             links_list.append(link_url)
-        print(links_list)
+        driver.close()
         return links_list
 
     def export_links(self,a_tag_attrs={},urlparams={}):
@@ -101,7 +107,7 @@ class LinkCrawler(object):
             links_list.append(line.replace('\n',''))
         f.close()
         return links_list
+
 if __name__ == "__main__":
     url = "https://www.cnn.com/search/?q=bitcoin"
-    crawler = LinkCrawler("https://www.cnn.com/search/?q=bitcoin","links.txt","links/")
-    crawler.export_links()
+    crawler = LinkCrawler(url,"links.txt","links/","/usr/bin/geckodriver")
