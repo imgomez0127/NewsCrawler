@@ -12,15 +12,12 @@ from urllib.parse import urljoin
 import time
 class LinkCrawler(object):
 
-    def __init__(self,index_url,filename,dirname,geckodriver_path,query={}):
+    def __init__(self,index_url,filename,dirname,geckodriver_path):
         self.__index_url = index_url
         self.__filename = filename
         self.__dirname = dirname
         self.__geckodriver_path = geckodriver_path
-        if(type(query) != dict):
-            raise valueerror("the input query is not of type dict")
-        self.__query = query
-
+        
     @property
     def index_url(self):
         return self.__index_url
@@ -54,47 +51,45 @@ class LinkCrawler(object):
             return self.__filename
         return self.__dirname + self.__filename
     
-    @property
-    def query(self):
-        return self.__query
-    
-    @query.setter
-    def query(self,query):
-        if(type(query) != dict):
-            raise ValueError("The input query is not of type dict")
-        self.__query = query        
-
     def __getPageHTML(self,url):
         options = Options()
         options.headless = True
         driver = webdriver.Firefox(options=options, 
                 executable_path = self.__geckodriver_path)
-        driver.get(self.__index_url) 
+        driver.set_page_load_timeout(20)
+        driver.get(url) 
         page = driver.page_source
-        driver.close()
+        driver.quit()
         return page
+
     def __constructFullURL(self,urlparams):
+        if(urlparams == {}):
+            return self.__index_url
         fullurl = self.__index_url if (self.__index_url[-1] == "/") else self.__index_url + "/"
         fullurl += "?"
         for key,value in urlparams.items():
             fullurl += key + "=" + value + "&" 
         return fullurl[:-1] 
-    def __find_links(self,a_tag_wrapper_tag,a_tag_wrapper_class,
+
+    def __find_links(self,wrapper,wrapper_attrs,
                     a_tag_attrs,urlparams):
         a_tag_list = []
         links_list = []
         fullURL = self.__constructFullURL(urlparams)
         print(fullURL)
         index_page = self.__getPageHTML(fullURL)
-        a_tag_list += BeautifulSoup(index_page,"lxml").find_all("a",attrs = a_tag_attrs)
+        index_page_soup = BeautifulSoup(index_page,"lxml")
+        wrapper_lst = index_page_soup.find_all(wrapper,attrs=wrapper_attrs)
+        for a_tag in wrapper_lst: 
+            a_tag_list += a_tag.find_all("a",attrs = a_tag_attrs)
         for a_tag in a_tag_list:
             link_url = urljoin(self.__index_url, a_tag.get('href'))
-            links_list.append(link_url)
-        print(links_list)
+            if(link_url not in links_list):
+                links_list.append(link_url)
         return links_list
 
-    def export_links(self,a_tag_attrs={},urlparams={}):
-        links_list = self.__find_links("div",{"class":"divname"},a_tag_attrs,urlparams)
+    def export_links(self,wrapper,wrapper_attrs={},a_tag_attrs={},urlparams={}):
+        links_list = self.__find_links(wrapper,wrapper_attrs, a_tag_attrs,urlparams)
         if not os.path.exists(self.__dirname):
             os.makedirs(self.__dirname)
         f = open(self.full_filename,'w')
@@ -122,5 +117,5 @@ class LinkCrawler(object):
 
 if __name__ == "__main__":
     url = "https://www.washingtonpost.com/newssearch/"
-    crawler = LinkCrawler(url,"links.txt","links/","/usr/bin/geckodriver")
-    crawler.export_links(urlparams={"query":"bitcoin"})
+    crawler = LinkCrawler(url,"links.txt","links/","/usr/bin/geckodriver") 
+    crawler.export_links("div",wrapper_attrs={"class":"pb-feed-headline"},a_tag_attrs={"class":"ng-binding"},urlparams={"query":"bitcoin"})
