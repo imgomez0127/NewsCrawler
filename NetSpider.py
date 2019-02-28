@@ -1,15 +1,16 @@
 """ 
-A module that contains the class for a webcrawler which finds all the CryptoCurrency data hosted on coinmarketcap
+    A module that contains the class for a webcrawler framework
+    Which parses the article off of a News website
     By Ian Gomez
 """
 from bs4 import BeautifulSoup
-import os.path
+import os.path 
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
 from LinkCrawler import LinkCrawler
 import csv
 import json
-
+import time
 class NetSpider(object):
 
     link_file = "links.txt"
@@ -17,15 +18,16 @@ class NetSpider(object):
     queue_set = set()
     index_url = ""
     article_file = "articles.json"
-    query = {}
     geckodriver_path = "/usr/bin/geckodriver"
-
+    
     def __init__(self, spider_id, data_directory,queue_link):
         self.__spider_id = spider_id
         self.__data_directory = data_directory
         self.__queue_link = queue_link
+        self.__page_html = self.__getPageHTML(self.__queue_link)
     @property
     def spider_id(self):
+        #id of the spider thread
         return self.__spider_id
 
     @spider_id.setter
@@ -34,31 +36,34 @@ class NetSpider(object):
         
     @property
     def queue_link(self):
+        #url of the article that is going to be parsed
         return self.__queue_link
 
     @property
     def data_directory(self):
+        #directory for which the article is to be stored
         return self.__data_directory
 
-    @staticmethod
-    def startup(wrapper,wrapper_attrs={},a_tag_attrs = {},urlparams={}):
-        if(NetSpider.index_url == ""):
+    @classmethod
+    def startup(cls,wrapper,wrapper_attrs={},a_tag_attrs = {},urlparams={}):
+        print(cls)
+        print(cls.index_url)
+        if(cls.index_url == ""):
             raise ValueError("There is no URL to request from")
-        full_filename = NetSpider.link_file_directory + NetSpider.link_file
-        if not os.path.exists(NetSpider.link_file_directory):
-            os.makedirs(NetSpider.link_file_directory)
+        full_filename = cls.link_file_directory + cls.link_file
+        if not os.path.exists(cls.link_file_directory):
+            os.makedirs(cls.link_file_directory)
         if not os.path.isfile(full_filename):
             f = open(full_filename, 'w')
             f.close()
         LinkCrawler(
-                    NetSpider.index_url,\
-                    NetSpider.link_file,NetSpider.link_file_directory,
-                    NetSpider.geckodriver_path
+                    cls.index_url,\
+                    cls.link_file,cls.link_file_directory,
+                    cls.geckodriver_path
                     ).export_links(wrapper,wrapper_attrs,a_tag_attrs,urlparams)
         with open(full_filename,'rt') as f:
             for line in f:
-                NetSpider.queue_set.add(line.replace('\n',''))
-
+                cls.queue_set.add(line.replace('\n',''))
     def __getPageHTML(self,url):
         options = Options()
         options.headless = True
@@ -66,33 +71,29 @@ class NetSpider(object):
                 executable_path = NetSpider.geckodriver_path)
         driver.set_page_load_timeout(20)
         driver.get(url) 
-        page = driver.page_source
+        page_html = driver.page_source
         driver.quit()
-        return page
-
-    def crawl_page(self,title_html_tags,body_html_tags,title_attrs = {}, 
-                    body_attrs = {}):
-        page = self.__getPageHTML(self.__queue_link)
-        page_soup = BeautifulSoup(page,"lxml")
-        title = page_soup.find_all(title_html_tags,attrs = title_attrs)
-        body = page_soup.find_all(body_html_tags,body_attrs)
-        article = ""
-        for tag in body:
-            article += tag.get_text()        
-        print(article)
-        if(title == []):
-            raise ValueError("The title has no values returned") 
-        if(body == []):
-            raise ValueError("The body has no values returned")
-        dataJson = json.dumps({"title": title[0].get_text(), "article":article})
-        return dataJson 
-
-    def getArticleAsJSON(self,title_html_tags,body_html_tags,title_attrs = {},
-                        body_attrs = {}):
-        jsonData = self.crawl_page(title_html_tags,body_html_tags,
-                                    title_attrs,body_attrs) 
-        return jsonData                
+        return page_html
     
+    def _getTitle(self, title_html,title_attrs = {}):
+        page_soup = BeautifulSoup(self.__page_html,"lxml")
+        title = page_soup.find_all(title_html,attrs = title_attrs)
+        return title[0].get_text()
+    
+    def _getArticle(self,wrapper,body,wrapper_attrs={},body_attrs={}):
+        page_soup = BeautifulSoup(self.__page_html,"lxml")
+        wrappers = page_soup.find_all(wrapper,attrs=wrapper_attrs)
+        body_lst = []
+        for wrapper_tag in wrappers:
+            body_lst += wrapper_tag.find_all(body,body_attrs)
+        body_lst = [tag.get_text() for tag in body_lst] 
+        return " ".join(body_lst) 
+    
+    def _getAuthor(self,author_tag,author_attrs = {}):
+        page_soup = BeautifulSoup(self.__page_html,"lxml")
+        author_html = page_soup.find_all(author_tag,attrs=author_attrs)
+        return author_html[0].get_text() 
+
 if __name__ == "__main__":
     url = "https://www.washingtonpost.com/newssearch/"
     query = {"query":"bitcoin"}
@@ -100,4 +101,4 @@ if __name__ == "__main__":
     NetSpider.startup("div",wrapper_attrs={"class":"pb-feed-headline"},a_tag_attrs={"class":"ng-binding"},urlparams={"query":"bitcoin"})
     print(NetSpider.queue_set)
     spider = NetSpider(1,"data/",NetSpider.queue_set.pop())
-    print(json.loads(spider.crawl_page("h1","p",title_attrs = {"itemprop":"headline"})))
+
