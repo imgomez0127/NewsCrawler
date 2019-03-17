@@ -11,9 +11,9 @@ class WPSpider(NetSpider):
         return json.dumps({"title":title,"author":author,"article":article}) 
             
 if __name__ == "__main__":
-    testurl = "https://www.washingtonpost.com/technology/2019/02/19/password-managers-have-security-flaw-you-should-still-use-one/?utm_term=.9805c84d7273"
+    testurl = "https://www.washingtonpost.com/world/asia_pacific/mt-gox-head-convicted-of-manipulating-data-cleared-of-theft/2019/03/14/7678979e-46d1-11e9-94ab-d2dda3c0df52_story.html?utm_term=.5038d4a083e5"
+    WPSpider.startup("div",wrapper_attrs={"class":"pb-feed-headline"},a_tag_attrs={"class":"ng-binding"},urlparams={"query":"bitcoin"})
     query = {"query":"bitcoin"}
-    WPSpider.startup("div",wrapper_attrs={"class":"pb-feed-headline"},a_tag_attrs={"class":"ng-binding"},urlparams=query)
     spider = WPSpider(1,"data/",testurl)
     print(json.loads(spider.getArticleAsJSON()))
 

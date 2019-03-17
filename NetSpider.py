@@ -11,9 +11,7 @@ import json
 import os.path 
 import time
 from bs4 import BeautifulSoup
-from selenium import webdriver
-from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.firefox.options import Options
+from requests_html import HTMLSession
 from LinkCrawler import LinkCrawler
 class NetSpider(object):
     """
@@ -28,7 +26,7 @@ class NetSpider(object):
     index_url = ""
     article_file = "articles.json"
     geckodriver_path = "/usr/bin/geckodriver"
-    
+    chromedriver_path = "/usr/bin/chromedriver" 
     def __init__(self, spider_id, data_directory,queue_link):
         self.__spider_id = spider_id
         self.__data_directory = data_directory
@@ -88,19 +86,9 @@ class NetSpider(object):
                 page_html(str): The html for the inserted news article
             
         """
-        options = Options()
-        options.headless = True
-        driver = webdriver.Firefox(options=options, 
-                executable_path = NetSpider.geckodriver_path)
-        driver.set_page_load_timeout(20)
-        try:
-            driver.get(url) 
-        except TimeoutException as e:
-            driver.quit()
-            print("Error %s" % e) 
-            sys.exit(1)
-        page_html = driver.page_source
-        driver.quit()
+        session = HTMLSession()
+        r = session.get(url)
+        page_html = r.html.html
         return page_html
     
     def _getTitle(self, title_html,title_attrs = {}):
