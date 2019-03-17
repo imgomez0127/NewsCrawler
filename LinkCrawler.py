@@ -13,7 +13,10 @@ from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 import requests
 from requests_html import HTMLSession
-import time
+from selenium import webdriver
+from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.firefox.options import Options
+
 class LinkCrawler(object):
     """
         Args:
@@ -76,9 +79,19 @@ class LinkCrawler(object):
     
             This function takes in a url and outputs the html of the page
         """ 
-        session = HTMLSession()
-        r = session.get(url)
-        page = r.html.html 
+        options = Options()
+        options.headless = True
+        driver = webdriver.Firefox(options=options, 
+        executable_path = self.__geckodriver_path)
+        driver.set_page_load_timeout(20)
+        try:
+            driver.get(url) 
+        except TimeoutException as e:
+            driver.quit()
+            print("Error %s" % e) 
+            sys.exit(1)
+        page = driver.page_source
+        driver.quit()
         return page
 
     def __constructFullURL(self,urlparams):
